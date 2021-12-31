@@ -140,10 +140,12 @@ func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string
 				found = true
 				// Add the new import
 				for _, v := range imp {
+
 					iSpec := &ast.ImportSpec{
 						Name: &ast.Ident{Name: v.Name},
 						Path: &ast.BasicLit{Value: v.Type},
 					}
+
 					dd.Specs = append(dd.Specs, iSpec)
 				}
 			}
@@ -177,6 +179,7 @@ func (b *BaseGenerator) AddImportsToFile(imp []parser.NamedTypeValue, src string
 	if err := format.Node(&buf, fset, f); err != nil {
 		return "", err
 	}
+	fmt.Println("strings:",string(buf.Bytes()));
 	return fmt.Sprintf("%s", buf.Bytes()), nil
 }
 

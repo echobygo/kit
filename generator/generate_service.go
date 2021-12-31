@@ -79,6 +79,9 @@ func (g *GenerateService) Generate() (err error) {
 	if !g.serviceFound() {
 		return
 	}
+	if err!=nil {
+		fmt.Println("err:",err)
+	}
 	g.removeBadMethods()
 	if len(g.serviceInterface.Methods) == 0 {
 		logrus.Error("The service has no suitable methods please implement the interface methods")
@@ -232,6 +235,9 @@ func (g *GenerateService) generateNewBasicStructMethod() {
 	g.pg.NewLine()
 }
 func (g *GenerateService) serviceFound() bool {
+	if g.file == nil {
+		return  false
+	}
 	for n, v := range g.file.Interfaces {
 		if v.Name == g.interfaceName {
 			g.serviceInterface = v

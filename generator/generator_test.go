@@ -42,7 +42,7 @@ func setDefaults() {
 		viper.SetDefault("gk_grpc_compile_file_name", "compile.sh")
 	}
 	viper.SetDefault("gk_service_struct_prefix", "basic")
-	viper.Set("gk_testing", true)
+	viper.Set("gk_testing", false)
 
 }
 func createTestMethod(name string, param []parser.NamedTypeValue, result []parser.NamedTypeValue) parser.Method {

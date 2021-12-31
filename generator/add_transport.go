@@ -23,6 +23,7 @@ import (
 	"github.com/kujtimiihoxha/kit/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"path/filepath"
 )
 
 // GenerateTransport implement Gen, is used to generate a service transport
@@ -100,9 +101,11 @@ func (g *GenerateTransport) Generate() (err error) {
 		}
 	case "grpc":
 		gp := newGenerateGRPCTransportProto(g.name, g.serviceInterface, g.methods)
+		fmt.Println("=================生成pb文件=================")
 		err = gp.Generate()
 		if err != nil {
 			return err
+			fmt.Println("=================err=================",err)
 		}
 		gt := newGenerateGRPCTransport(g.name, g.serviceInterface, g.methods)
 		err = gt.Generate()
@@ -659,6 +662,37 @@ func newGenerateGRPCTransportProto(name string, serviceInterface parser.Interfac
 	t.fs = fs.Get()
 	return t
 }
+func isExist(path string)(bool){
+    _, err := os.Stat(path)
+    if err != nil{
+        if os.IsExist(err){
+            return true
+        }
+        if os.IsNotExist(err){
+            return false
+        }
+        fmt.Println(err)
+        return false
+    }
+    return true
+}
+func getCurrentAbPathByExecutable() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	res, _ := filepath.EvalSymlinks(filepath.Dir(exePath))
+	return res
+}
+
+func defaultPbImport() string {
+	return `
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+	`
+}
+
+
 func (g *generateGRPCTransportProto) Generate() (err error) {
 	g.CreateFolderStructure(g.destPath)
 	if b, err := g.fs.Exists(g.pbFilePath); err != nil {
@@ -694,8 +728,28 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 			&proto.Syntax{
 				Value: "proto3",
 			},
+			&proto.Import {
+				Comment: &proto.Comment{
+						Lines: []string{`导入文件`},
+				},
+				Filename: "google/protobuf/empty.proto",
+			},
+			&proto.Import {
+				Filename: "google/protobuf/wrappers.proto",
+			},
 			&proto.Package{
 				Name: "pb",
+			},
+			&proto.Option {
+				Comment: &proto.Comment{
+						Lines: []string{`生成文件导入到指定目录和包的里面`},
+				},
+				Name: "go_package",
+				IsEmbedded: true,
+				Constant: proto.Literal{
+					IsString: true,
+					Source: "./protoc;pb",
+				},
 			},
 			svc,
 		)
@@ -719,19 +773,24 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 		g.pbFilePath = path.Join(viper.GetString("gk_folder"), g.pbFilePath)
 	}
 	if !viper.GetBool("gk_testing") {
-		cmd := exec.Command("protoc", g.pbFilePath, "--go_out=plugins=grpc:.")
+		//g.pbFilePath = getCurrentAbPathByExecutable()+"/"+g.pbFilePath
+		cmd := exec.Command("protoc", g.pbFilePath,"-I=." ,"--go_out=plugins=grpc:.")
 		cmd.Stdout = os.Stdout
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		err = cmd.Run()
 		if err != nil {
+			fmt.Println(err,"\n erros detail:\n",stderr.String())
 			return err
 		}
 	}
+	fmt.Println("grpc grpc  grpc 2",g.compileFilePath)
 	if b, e := g.fs.Exists(g.compileFilePath); e != nil {
 		return e
 	} else if b {
 		return
 	}
-
+	fmt.Println("grpc grpc  grpc ")
 	if runtime.GOOS == "windows" {
 		return g.fs.WriteFile(
 			g.compileFilePath,
@@ -744,7 +803,7 @@ func (g *generateGRPCTransportProto) Generate() (err error) {
 :: See also
 ::  https://github.com/grpc/grpc-go/tree/master/examples
 
-protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+protoc -I=. %s.proto --go_out=plugins=grpc:.`, g.name),
 			false,
 		)
 	}
@@ -764,7 +823,7 @@ protoc %s.proto --go_out=plugins=grpc:.`, g.name),
 # See also
 #  https://github.com/grpc/grpc-go/tree/master/examples
 
-protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+protoc -I=. %s.proto --go_out=plugins=grpc:.`, g.name),
 			false,
 		)
 	}
@@ -789,7 +848,7 @@ protoc %s.proto --go_out=plugins=grpc:.`, g.name),
 # See also
 #  https://github.com/grpc/grpc-go/tree/master/examples
 
-protoc %s.proto --go_out=plugins=grpc:.`, g.name),
+protoc -I=. %s.proto --go_out=plugins=grpc:.`, g.name),
 		false,
 	)
 }
