@@ -1689,28 +1689,34 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 			jen.Lit("URL"),
 			jen.Id("*zipkinURL"),
 		),
-		jen.List(jen.Id("collector"), jen.Err()).Op(":=").Qual(
-			"github.com/openzipkin/zipkin-go-opentracing", "NewHTTPCollector",
+		jen.List(jen.Id("collector")).Op(":=").Qual(
+			"github.com/openzipkin/zipkin-go/reporter/http", "NewReporter",
 		).Call(jen.Id("*zipkinURL")),
-		jen.If(jen.Err().Op("!=").Nil()).Block(
-			jen.Id("logger").Dot("Log").Call(
-				jen.Lit("err"),
-				jen.Id("err"),
-			),
-			jen.Qual("os", "Exit").Call(jen.Lit(1)),
-		),
+		
 		jen.Defer().Id("collector").Dot("Close").Call(),
-		jen.Id("recorder").Op(":=").Qual(
-			"github.com/openzipkin/zipkin-go-opentracing", "NewRecorder",
+		jen.List(jen.Id("endpoint"), jen.Err()) .Op(":=").Qual(
+			"github.com/openzipkin/zipkin-go", "NewEndpoint",
 		).Call(
-			jen.Id("collector"),
-			jen.Lit(false),
-			jen.Lit("localhost:80"),
 			jen.Lit(g.name),
+			jen.Lit("localhost:80"),
+			
 		),
-		jen.List(jen.Id("tracer"), jen.Id("err")).Op("=").Qual(
-			"github.com/openzipkin/zipkin-go-opentracing", "NewTracer",
-		).Call(jen.Id("recorder")),
+		jen.If(jen.Err().Op("!=").Nil()).Block(
+			jen.Id("logger").Dot("Log").Call(
+				jen.Lit("err"),
+				jen.Id("err"),
+			),
+			// jen.Qual("os", "Exit").Call(jen.Lit(1)),
+		),
+		jen.List(jen.Id("endpointoption"), jen.Err()) .Op(":=").Qual(
+			"github.com/openzipkin/zipkin-go", "WithLocalEndpoint",
+		).Call(
+			jen.Id("endpoint"),
+		),
+
+		jen.List(jen.Id("nativeTrace"), jen.Id("err")).Op("=").Qual(
+			"github.com/openzipkin/zipkin-go", "NewTracer",
+		).Call(jen.Id("collector"),jen.Id("endpointoption")),
 		jen.If(jen.Err().Op("!=").Nil()).Block(
 			jen.Id("logger").Dot("Log").Call(
 				jen.Lit("err"),
@@ -1718,6 +1724,16 @@ func (g *generateCmd) generateRun() (*PartialGenerator, error) {
 			),
 			jen.Qual("os", "Exit").Call(jen.Lit(1)),
 		),
+
+		jen.List(jen.Id("trace")).Op("=").Qual(
+			"github.com/openzipkin-contrib/zipkin-go-opentracing", "Wrap",
+		).Call(
+			jen.Id("nativeTrace"),
+		),
+		jen.Qual(
+				"github.com/opentracing/opentracing-go", "SetGlobalTracer",
+		).Call(jen.Id("tracer")),
+		
 	).Else().If(jen.Id("*lightstepToken").Op("!=").Lit("")).Block(
 		jen.Id("logger").Dot("Log").Call(
 			jen.Lit("tracer"),
